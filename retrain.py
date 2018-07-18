@@ -166,38 +166,38 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
     tf.logging.error("Image directory '" + image_dir + "' not found.")
     return None
   result = collections.OrderedDict()
-  sub_dirs = sorted(x[0] for x in tf.gfile.Walk(image_dir))
-  # The root directory comes first, so skip it.
-  is_root_dir = True
-  for sub_dir in sub_dirs:
-    if is_root_dir:
-      is_root_dir = False
-      continue
-    extensions = ['jpg', 'jpeg', 'JPG', 'JPEG']
+
+  path_entries = [path for path in tf.gfile.ListDirectory(image_dir) if not path.startswith('.')]
+  for path_entry in path_entries:
+    tf.logging.info("Looking for images in '" + path_entry + "'")
+    sub_dirs = sorted(x[0] for x in tf.gfile.Walk(os.path.join(image_dir, path_entry)))
     file_list = []
-    dir_name = os.path.basename(sub_dir)
-    if dir_name == image_dir:
-      continue
-    tf.logging.info("Looking for images in '" + dir_name + "'")
-    for extension in extensions:
-      file_glob = os.path.join(image_dir, dir_name, '*.' + extension)
-      file_list.extend(tf.gfile.Glob(file_glob))
+    for sub_dir in sub_dirs:
+      extensions = ['jpg', 'jpeg', 'JPG', 'JPEG', 'png', 'PNG', 'bmp', 'BMP']
+      for extension in extensions:
+        file_glob = os.path.join(sub_dir, '*.' + extension)
+        file_list.extend(tf.gfile.Glob(file_glob))
     if not file_list:
       tf.logging.warning('No files found')
       continue
+
+    tf.logging.info("Found " + str(len(file_list)) + " images from '" + path_entry + "'")
     if len(file_list) < 20:
       tf.logging.warning(
           'WARNING: Folder has less than 20 images, which may cause issues.')
     elif len(file_list) > MAX_NUM_IMAGES_PER_CLASS:
       tf.logging.warning(
           'WARNING: Folder {} has more than {} images. Some images will '
-          'never be selected.'.format(dir_name, MAX_NUM_IMAGES_PER_CLASS))
-    label_name = re.sub(r'[^a-z0-9]+', ' ', dir_name.lower())
+          'never be selected.'.format(path_entry, MAX_NUM_IMAGES_PER_CLASS))
+    # TODO: Add cli option for shuffle.
+    # random.shuffle(file_list)
+    label_name = re.sub(r'[^a-z0-9]+', ' ', path_entry.lower())
+
     training_images = []
     testing_images = []
     validation_images = []
     for file_name in file_list:
-      base_name = os.path.basename(file_name)
+      base_name = file_name[len(os.path.join(image_dir, path_entry)) + 1:]
       # We want to ignore anything after '_nohash_' in the file name when
       # deciding which set to put an image in, the data set creator has a way of
       # grouping photos that are close variations of each other. For example
@@ -222,7 +222,7 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
       else:
         training_images.append(base_name)
     result[label_name] = {
-        'dir': dir_name,
+        'dir': path_entry,
         'training': training_images,
         'testing': testing_images,
         'validation': validation_images,
@@ -364,6 +364,11 @@ def create_bottleneck_file(bottleneck_path, image_lists, label_name, index,
   except Exception as e:
     raise RuntimeError('Error during processing file %s (%s)' % (image_path,
                                                                  str(e)))
+
+  bottleneck_dir_path_len = len(bottleneck_path) - len(os.path.basename(bottleneck_path)) - 1
+  bottleneck_dir_path = bottleneck_path[:bottleneck_dir_path_len]
+  tf.gfile.MakeDirs(bottleneck_dir_path)
+
   bottleneck_string = ','.join(str(x) for x in bottleneck_values)
   with open(bottleneck_path, 'w') as bottleneck_file:
     bottleneck_file.write(bottleneck_string)
@@ -919,7 +924,7 @@ def prepare_file_system():
   return
 
 
-def add_jpeg_decoding(module_spec):
+def add_image_decoding(module_spec):
   """Adds operations that perform JPEG decoding and resizing to the graph..
 
   Args:
@@ -931,8 +936,8 @@ def add_jpeg_decoding(module_spec):
   """
   input_height, input_width = hub.get_expected_image_size(module_spec)
   input_depth = hub.get_num_image_channels(module_spec)
-  jpeg_data = tf.placeholder(tf.string, name='DecodeJPGInput')
-  decoded_image = tf.image.decode_jpeg(jpeg_data, channels=input_depth)
+  jpeg_data = tf.placeholder(tf.string, name='DecodeImageInput')
+  decoded_image = tf.image.decode_image(jpeg_data, channels=input_depth)
   # Convert from full range of uint8 to range [0,1] of float32.
   decoded_image_as_float = tf.image.convert_image_dtype(decoded_image,
                                                         tf.float32)
@@ -1032,7 +1037,7 @@ def main(_):
     sess.run(init)
 
     # Set up the image decoding sub-graph.
-    jpeg_data_tensor, decoded_image_tensor = add_jpeg_decoding(module_spec)
+    jpeg_data_tensor, decoded_image_tensor = add_image_decoding(module_spec)
 
     if do_distort_images:
       # We will be applying distortions, so setup the operations we'll need.
