@@ -10,7 +10,8 @@ import random
 import json
 
 gallery_name_format = 'galleries{}.json'
-gallery_file_path_format = 'cache/{}'
+cache_dir_name = 'cache'
+gallery_file_path_format = cache_dir_name + '/{}'
 image_header_prefix = ['a', 'aa', 'ba', 'i']
 url_base = 'hitomi.la/galleries'
 image_hosts = ['https://{}.{}'.format(prefix, url_base) for prefix in image_header_prefix]
@@ -49,6 +50,7 @@ def _get_gallery_count():
 
 
 def _cache_galleries(gallery_count):
+    _ensure_cache_dir()
     for i in range(0, gallery_count):
         gallery_name = gallery_name_format.format(i)
         gallery_url = 'https://ltn.hitomi.la/' + gallery_name
@@ -62,6 +64,11 @@ def _cache_galleries(gallery_count):
         with open(out_file_name, 'w') as out_file:
             print('Downloading {} into {}...'.format(gallery_name, out_file_name))
             out_file.write(response.content.decode('utf-8'))
+
+
+def _ensure_cache_dir():
+    if not os.path.exists(cache_dir_name):
+        os.mkdir(cache_dir_name)
 
 
 def _sample_random_galleries(gallery_count, sample_count):
