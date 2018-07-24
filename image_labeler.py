@@ -106,10 +106,10 @@ def classify_images(file_names):
         input_operation.outputs[0]: t
     })
 
-  labels = load_labels(label_file)
-  batch_results = np.squeeze(batch_results)
-  indices = batch_results.argsort()
   batch_size = len(batch_results)
+
+  labels = load_labels(label_file)
+  indices = batch_results.argsort()
 
   labels = np.repeat([labels], batch_size, axis=0)
   sorted_labels = labels[:, indices][np.eye(batch_size, batch_size, dtype=bool)][:, ::-1]

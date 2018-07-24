@@ -9,12 +9,19 @@ import os
 import random
 import json
 
+from file_utils import ensure_dir_exists
+
 gallery_name_format = 'galleries{}.json'
 cache_dir_name = 'cache'
 gallery_file_path_format = cache_dir_name + '/{}'
 image_header_prefix = ['a', 'aa', 'ba', 'i']
 url_base = 'hitomi.la/galleries'
 image_hosts = ['https://{}.{}'.format(prefix, url_base) for prefix in image_header_prefix]
+
+class Image:
+    def __init__(self, urls, gallery):
+        self.urls = urls
+        self.gallery = gallery
 
 
 def sample_random(gallery_sample_count, image_sample_count, include_cover=True):
@@ -30,8 +37,8 @@ def sample_random(gallery_sample_count, image_sample_count, include_cover=True):
         first_valid_url_idx = _find_first_valid_url_idx(img_urls)
         if first_valid_url_idx < 0:
             continue
-        img_urls = img_urls[first_valid_url_idx:first_valid_url_idx+image_sample_count]
-        images[str(gallery['id'])] = img_urls
+        img_urls = img_urls[first_valid_url_idx:first_valid_url_idx+image_sample_count+(1 if include_cover else 0)]
+        images[str(gallery['id'])] = Image(img_urls, gallery)
 
     return images
 
@@ -50,7 +57,7 @@ def _get_gallery_count():
 
 
 def _cache_galleries(gallery_count):
-    _ensure_cache_dir()
+    ensure_dir_exists(cache_dir_name)
     for i in range(0, gallery_count):
         gallery_name = gallery_name_format.format(i)
         gallery_url = 'https://ltn.hitomi.la/' + gallery_name
@@ -64,11 +71,6 @@ def _cache_galleries(gallery_count):
         with open(out_file_name, 'w') as out_file:
             print('Downloading {} into {}...'.format(gallery_name, out_file_name))
             out_file.write(response.content.decode('utf-8'))
-
-
-def _ensure_cache_dir():
-    if not os.path.exists(cache_dir_name):
-        os.mkdir(cache_dir_name)
 
 
 def _sample_random_galleries(gallery_count, sample_count):
@@ -104,8 +106,9 @@ def _sample_image_names(gallery_id, sample_count, include_cover):
 
 
 if __name__ == '__main__':
-    images = sample_random(5, 2)
-    for k in images:
-        for img_url in images[k]:
-            print('{}'.format(img_url))
+    images = sample_random(1, 0)
+    for _, image in images.items():
+        # image = images[k]
+        print('{}'.format(image.urls))
+        print('{}'.format(image.gallery))
         print('\n')

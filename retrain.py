@@ -132,6 +132,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 
+from file_utils import ensure_dir_exists
+
 FLAGS = None
 
 MAX_NUM_IMAGES_PER_CLASS = 2 ** 27 - 1  # ~134M
@@ -334,16 +336,6 @@ def run_bottleneck_on_image(sess, image_data, image_data_tensor,
                                {resized_input_tensor: resized_input_values})
   bottleneck_values = np.squeeze(bottleneck_values)
   return bottleneck_values
-
-
-def ensure_dir_exists(dir_name):
-  """Makes sure the folder exists on disk.
-
-  Args:
-    dir_name: Path string to the folder we want to create.
-  """
-  if not os.path.exists(dir_name):
-    os.makedirs(dir_name)
 
 
 def create_bottleneck_file(bottleneck_path, image_lists, label_name, index,
