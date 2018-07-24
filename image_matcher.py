@@ -2,7 +2,7 @@ import os
 from urllib.parse import urlparse
 import requests
 
-from file_utils import ensure_dir_exists
+from utils.file_utils import ensure_dir_exists
 from image_sampler import sample_random
 from image_labeler import classify_images
 

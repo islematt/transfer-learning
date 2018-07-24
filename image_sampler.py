@@ -9,7 +9,7 @@ import os
 import random
 import json
 
-from file_utils import ensure_dir_exists
+from utils.file_utils import ensure_dir_exists
 
 gallery_name_format = 'galleries{}.json'
 cache_dir_name = 'cache'
