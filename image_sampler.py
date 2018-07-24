@@ -8,6 +8,7 @@ import json
 import os
 import random
 import json
+import logging
 
 from utils.file_utils import ensure_dir_exists
 
@@ -17,6 +18,7 @@ gallery_file_path_format = cache_dir_name + '/{}'
 image_header_prefix = ['a', 'aa', 'ba', 'i']
 url_base = 'hitomi.la/galleries'
 image_hosts = ['https://{}.{}'.format(prefix, url_base) for prefix in image_header_prefix]
+logger = logging.getLogger('app')
 
 class Image:
     def __init__(self, urls, gallery):
@@ -26,16 +28,23 @@ class Image:
 
 def sample_random(gallery_sample_count, image_sample_count, include_cover=True):
     gallery_count = _get_gallery_count()
+
+    logger.info('Preparing gallery caches.')
     _cache_galleries(gallery_count)
+
+    logger.info('Sampling random galleries.')
     galleries = _sample_random_galleries(gallery_count, gallery_sample_count)
+
     images = {}
-    print('len(galleries): {}'.format(len(galleries)))
     for gallery in galleries:
+        logger.info('Sampling random images for gallery {}.'.format(gallery['id']))
         image_names = [img_name for img_name in _sample_image_names(gallery['id'], image_sample_count, include_cover)]
         img_urls = ['{}/{}/{}'.format(image_host, gallery['id'], img_name) for image_host in image_hosts for img_name in image_names]
 
+        logger.info('Examining valid image urls for gallery {}.'.format(gallery['id']))
         first_valid_url_idx = _find_first_valid_url_idx(img_urls)
         if first_valid_url_idx < 0:
+            logger.warn('Couldn\'t find valid url prefix for gallery {}'.format(gallery['id']))
             continue
         img_urls = img_urls[first_valid_url_idx:first_valid_url_idx+image_sample_count+(1 if include_cover else 0)]
         images[str(gallery['id'])] = Image(img_urls, gallery)
@@ -45,6 +54,7 @@ def sample_random(gallery_sample_count, image_sample_count, include_cover=True):
 
 def _find_first_valid_url_idx(img_urls):
     for i in range(len(img_urls)):
+        logger.debug('Checking {}'.format(img_urls[i]))
         if requests.head(img_urls[i]).status_code == 200:
             return i
     return -1
@@ -63,13 +73,12 @@ def _cache_galleries(gallery_count):
         gallery_url = 'https://ltn.hitomi.la/' + gallery_name
         out_file_name = gallery_file_path_format.format(gallery_name)
         if os.path.isfile(out_file_name):
-            print('{} exists. Skipping download.'.format(out_file_name))
             continue
 
         response = requests.get(gallery_url)
 
         with open(out_file_name, 'w') as out_file:
-            print('Downloading {} into {}...'.format(gallery_name, out_file_name))
+            logger.info('Caching {} into {}...'.format(gallery_name, out_file_name))
             out_file.write(response.content.decode('utf-8'))
 
 
@@ -102,6 +111,7 @@ def _sample_image_names(gallery_id, sample_count, include_cover):
         img_name = get_img_name(img_div)
         img_names.append(img_name)
 
+    logger.debug('Sampled images: {}'.format(img_names))
     return img_names
 
 

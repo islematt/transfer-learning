@@ -18,9 +18,12 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import logging
 
 import numpy as np
 import tensorflow as tf
+
+logger = logging.getLogger('app')
 
 
 def load_graph(model_file):
@@ -88,7 +91,9 @@ def classify_images(file_names):
 
   input_width, input_height, input_mean, input_std = 299, 299, 0, 255
 
+  logger.info('Loading graph...')
   graph = load_graph(model_file)
+  logger.info('Reading tensors from images')
   t = read_tensor_from_image_file(
       file_names,
       input_height=input_height,
@@ -102,6 +107,7 @@ def classify_images(file_names):
   output_operation = graph.get_operation_by_name(output_name)
 
   with tf.Session(graph=graph) as sess:
+    logger.info('Classifying...')
     batch_results = sess.run(output_operation.outputs[0], {
         input_operation.outputs[0]: t
     })
