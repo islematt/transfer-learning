@@ -132,7 +132,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 
-from file_utils import ensure_dir_exists
+from utils.file_utils import ensure_dir_exists
 
 FLAGS = None
 
@@ -1153,7 +1153,7 @@ def main(_):
       export_model(module_spec, class_count, FLAGS.saved_model_dir)
 
 
-if __name__ == '__main__':
+def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--image_dir',
@@ -1326,5 +1326,20 @@ if __name__ == '__main__':
       type=str,
       default='',
       help='Where to save the exported graph.')
-  FLAGS, unparsed = parser.parse_known_args()
+  return parser.parse_known_args()
+
+
+def identity(arg):
+  return arg
+
+
+def retrain(config_callback=identity):
+  global FLAGS
+  FLAGS, unparsed = parse_args()
+  FLAGS = config_callback(FLAGS)
+  print(FLAGS)
   tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
+
+
+if __name__ == '__main__':
+  retrain()
