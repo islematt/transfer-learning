@@ -106,5 +106,4 @@ venv.bak/
 
 # Custom
 resources/*
-out/*
-cache/*
+trained_models/*

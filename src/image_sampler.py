@@ -10,10 +10,10 @@ import random
 import json
 import logging
 
-from utils.file_utils import ensure_dir_exists
+from src.utils.file_utils import ensure_dir_exists, absolute_path_of
 
 gallery_name_format = 'galleries{}.json'
-cache_dir_name = 'cache'
+cache_dir_name = absolute_path_of('.cache')
 gallery_file_path_format = cache_dir_name + '/{}'
 image_header_prefix = ['a', 'aa', 'ba', 'i']
 url_base = 'hitomi.la/galleries'

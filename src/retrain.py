@@ -132,7 +132,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 
-from utils.file_utils import ensure_dir_exists
+from src.utils.file_utils import ensure_dir_exists
 
 FLAGS = None
 

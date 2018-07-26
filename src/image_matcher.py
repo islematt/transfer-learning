@@ -3,15 +3,16 @@ from urllib.parse import urlparse
 import requests
 import logging
 
-from utils.file_utils import ensure_dir_exists
-from image_sampler import sample_random
-from image_labeler import classify_images
+from src.utils.file_utils import ensure_dir_exists, absolute_path_of
+from src.image_sampler import sample_random
+from src.image_labeler import classify_images
 
 logger = logging.getLogger('app')
 
 
 def download(url, out_file_dir, out_file_name):
-    out_file_dir_path = os.path.join('out', out_file_dir)
+    out_file_dir_path = os.path.join('.cache', out_file_dir)
+    out_file_dir_path = absolute_path_of(out_file_dir_path)
     ensure_dir_exists(out_file_dir_path)
 
     response = requests.get(url, stream=True)
@@ -35,7 +36,7 @@ def _get_file_name_from_url(url):
     return os.path.basename(parsed_url.path)
 
 
-def match(gallery_sample_count, image_sample_count, include_cover=True):
+def match(gallery_sample_count, image_sample_count, model_file, label_file, include_cover=True):
     logger.info("Collecting random images...")
     images = sample_random(gallery_sample_count, image_sample_count, include_cover)
     out_file_paths = []
@@ -48,8 +49,5 @@ def match(gallery_sample_count, image_sample_count, include_cover=True):
             out_file_paths.append(out_file_path)
 
     logger.debug("Downloaded images: \n{}".format(out_file_paths))
-    return classify_images(out_file_paths)
 
-
-if __name__ == '__main__':
-    match()
+    return classify_images(absolute_path_of(out_file_paths), model_file, label_file)

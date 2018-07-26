@@ -17,11 +17,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import argparse
 import logging
 
 import numpy as np
 import tensorflow as tf
+
+from src.utils.file_utils import  absolute_path_of
 
 logger = logging.getLogger('app')
 
@@ -83,9 +86,7 @@ def load_labels(label_file):
   return label
 
 
-def classify_images(file_names):
-  model_file = 'out/graph.pb'
-  label_file = 'out/labels.txt'
+def classify_images(file_names, model_file, label_file):
   input_layer = 'Placeholder'
   output_layer = 'final_result'
 
@@ -122,10 +123,3 @@ def classify_images(file_names):
   sorted_batch_results = batch_results[:, indices][np.eye(batch_size, batch_size, dtype=bool)][:, ::-1]
   zipped_result = zip(file_names, sorted_labels, sorted_batch_results)
   return [e for e in zipped_result]
-
-
-if __name__ == "__main__":
-  file_names = ['resources/1.jpg', 'resources/14.jpg']
-  results = classify_images(file_names)
-  for result in results:
-    print(result)
