@@ -1,7 +1,7 @@
 import wx
 from rx.subjects import Subject
 
-class RootFrame(wx.Frame):
+class TrainModelListFrame(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title="Main View", size=(300, 150))
         self.list_selection = Subject()
