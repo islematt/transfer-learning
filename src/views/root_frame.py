@@ -1,17 +1,16 @@
 import wx
-from pubsub import pub
-
-KEY_LIST_STATE_CHANGED = 'LIST_STATE_CHANGED'
+from rx.subjects import Subject
 
 class RootFrame(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title="Main View", size=(300, 150))
+        self.list_selection = Subject()
 
         self._init_views()
         self._setup_views()
-        self.update_buttons_state()
+        self._notify_list_state_changed()
 
-        self._bind_callbacks()
+        self._setup_callbacks()
         self._perform_layout()
 
     def _init_views(self):
@@ -23,9 +22,9 @@ class RootFrame(wx.Frame):
     def _setup_views(self):
         self.delete.SetForegroundColour((0, 255, 0))
 
-    def _bind_callbacks(self):
-        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.update_buttons_state, self.list_save_state)
-        self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.update_buttons_state, self.list_save_state)
+    def _setup_callbacks(self):
+        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self._notify_list_state_changed, self.list_save_state)
+        self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self._notify_list_state_changed, self.list_save_state)
 
     def _perform_layout(self):
         sizer_root = wx.BoxSizer(wx.HORIZONTAL)
@@ -42,14 +41,8 @@ class RootFrame(wx.Frame):
         self.SetMinSize(self.GetSize())
         self.SetSizer(sizer_root)
 
-    def update_buttons_state(self, ignored=None):
-        pub.sendMessage(KEY_LIST_STATE_CHANGED)
-        # if self.list_save_state.GetSelectedItemCount() > 0:
-        #     self.select.Enable()
-        #     self.delete.Enable()
-        # else:
-        #     self.select.Disable()
-        #     self.delete.Disable()
+    def _notify_list_state_changed(self, ignored=None):
+        self.list_selection.on_next(self.list_save_state.GetSelectedItemCount())
 
     @property
     def selected_idx(self):
@@ -63,4 +56,4 @@ class RootFrame(wx.Frame):
             model = models[row_idx]
             self.list_save_state.Append([row_idx, model.name])
 
-        pub.sendMessage(KEY_LIST_STATE_CHANGED)
+        self._notify_list_state_changed()

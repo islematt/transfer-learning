@@ -1,13 +1,13 @@
 import os
 
-from pubsub import pub
+from rx.subjects import Subject
 from send2trash import send2trash
 
 from src.utils.file_utils import absolute_path_of
 
-KEY_MODEL_MODIFIED = 'MODEL_MODIFIED'
-
 class TrainModel:
+    model_update = Subject()
+
     def __init__(self, dir_path):
         self.dir_path = dir_path
 
@@ -17,7 +17,11 @@ class TrainModel:
 
     def delete(self):
         send2trash(self.dir_path)
-        pub.sendMessage(KEY_MODEL_MODIFIED)
+        TrainModel._notify_model_update()
+
+    @staticmethod
+    def _notify_model_update():
+        TrainModel.model_update.on_next(TrainModel.load())
 
     @staticmethod
     def load():
