@@ -4,6 +4,12 @@ import json
 
 import tensorflow as tf
 
+class QuiteStreamHandler(logging.StreamHandler):
+    def emit(self, record):
+        if 'Initialize variable' in record.msg and 'from checkpoint' in record.msg:
+            return
+        super(QuiteStreamHandler, self).emit(record)
+
 
 def setup_logging(default_path='logging.json', default_level=logging.INFO, env_log_key='LOG_CFG'):
     log_file_path = os.getenv(env_log_key, default_path)
