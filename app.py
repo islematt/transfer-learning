@@ -4,6 +4,9 @@ import wx
 
 from src.models.train_model import TrainModel
 from src.views.train_model_list_frame import TrainModelListFrame
+from src.controllers.train_model_controller import TrainModelController
+from src.utils import log_utils
+
 
 class Controller:
     def __init__(self, app):
@@ -18,7 +21,11 @@ class Controller:
     def _setup_callbacks(self):
         TrainModel.model_update.subscribe(self._reload_train_models)
         self.train_model_list_frame.list_selection.subscribe(self._toggle_buttons_state)
+        self.train_model_list_frame.new.Bind(wx.EVT_BUTTON, self._show_train_model_frame)
         self.train_model_list_frame.delete.Bind(wx.EVT_BUTTON, self._confirm_delete_model)
+
+    def _show_train_model_frame(self, ignored):
+        self.train_model_frame = TrainModelController()
 
     def _confirm_delete_model(self, ignored):
         try:
@@ -52,6 +59,9 @@ class Controller:
 
 
 if __name__ == "__main__":
+    log_utils.setup_logging()
+    log_utils.bridge_tf_log()
+
     app = wx.App(False)
     controller = Controller(app)
     app.MainLoop()

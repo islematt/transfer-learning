@@ -4,10 +4,16 @@ import json
 
 import tensorflow as tf
 
+
+# noinspection PyUnresolvedReferences
 class QuiteStreamHandler(logging.StreamHandler):
     def emit(self, record):
         if 'Initialize variable' in record.msg and 'from checkpoint' in record.msg:
             return
+        if self.proxy:
+            self.proxy(self.formatter.format(record))
+            return
+
         super(QuiteStreamHandler, self).emit(record)
 
 
@@ -29,3 +35,20 @@ def bridge_tf_log():
     tf_logger.handlers = []
     for handler in logger.handlers:
         tf_logger.addHandler(handler)
+
+
+def redirect_console_to(proxy):
+    handler = _get_console_handler()
+    if not handler:
+        return
+
+    handler.proxy = proxy
+    print(handler.proxy)
+
+
+def _get_console_handler():
+    for handler in logging.getLogger('app').handlers:
+        if isinstance(handler, QuiteStreamHandler):
+            return handler
+
+    return None

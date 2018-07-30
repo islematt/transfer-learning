@@ -131,6 +131,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
+from rx.subjects import Subject
 
 from src.utils.file_utils import ensure_dir_exists
 
@@ -145,6 +146,11 @@ CHECKPOINT_NAME = '/tmp/_retrain_checkpoint'
 # if it contains any of these ops.
 FAKE_QUANT_OPS = ('FakeQuantWithMinMaxVars',
                   'FakeQuantWithMinMaxVarsPerChannel')
+
+search_image_progress = Subject()
+cache_bottleneck_progress = Subject()
+training_progress = Subject()
+cleanup_progress = Subject()
 
 
 def create_image_lists(image_dir, testing_percentage, validation_percentage):
@@ -170,7 +176,11 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
   result = collections.OrderedDict()
 
   path_entries = [path for path in tf.gfile.ListDirectory(image_dir) if not path.startswith('.')]
-  for path_entry in path_entries:
+  path_entry_cnt = len(path_entries)
+  for idx in range(path_entry_cnt):
+    search_image_progress.on_next((idx + 1, path_entry_cnt))
+
+    path_entry = path_entries[idx]
     tf.logging.info("Looking for images in '" + path_entry + "'")
     sub_dirs = sorted(x[0] for x in tf.gfile.Walk(os.path.join(image_dir, path_entry)))
     file_list = []
@@ -457,10 +467,16 @@ def cache_bottlenecks(sess, image_lists, image_dir, bottleneck_dir,
   """
   how_many_bottlenecks = 0
   ensure_dir_exists(bottleneck_dir)
+  bottleneck_cnt = 0
+  for label_name, label_lists in image_lists.items():
+      for category in ['training', 'testing', 'validation']:
+          category_list = label_lists[category]
+          bottleneck_cnt += len(category_list)
   for label_name, label_lists in image_lists.items():
     for category in ['training', 'testing', 'validation']:
       category_list = label_lists[category]
       for index, unused_base_name in enumerate(category_list):
+        cache_bottleneck_progress.on_next((how_many_bottlenecks + 1, bottleneck_cnt))
         get_or_create_bottleneck(
             sess, image_lists, label_name, index, image_dir, category,
             bottleneck_dir, jpeg_data_tensor, decoded_image_tensor,
@@ -981,7 +997,7 @@ def export_model(module_spec, class_count, saved_model_dir):
     builder.save()
 
 
-def main(_):
+def main():
   # Needed to make sure the logging output is visible.
   # See https://github.com/tensorflow/tensorflow/issues/3047
   tf.logging.set_verbosity(tf.logging.INFO)
@@ -1063,6 +1079,7 @@ def main(_):
 
     # Run the training for as many cycles as requested on the command line.
     for i in range(FLAGS.how_many_training_steps):
+      training_progress.on_next((i + 1, FLAGS.how_many_training_steps))
       # Get a batch of input bottleneck values, either calculated fresh every
       # time with distortions applied, or from the cache stored on disk.
       if do_distort_images:
@@ -1093,10 +1110,10 @@ def main(_):
             [evaluation_step, cross_entropy],
             feed_dict={bottleneck_input: train_bottlenecks,
                        ground_truth_input: train_ground_truth})
-        tf.logging.info('%s: Step %d: Train accuracy = %.1f%%' %
-                        (datetime.now(), i, train_accuracy * 100))
-        tf.logging.info('%s: Step %d: Cross entropy = %f' %
-                        (datetime.now(), i, cross_entropy_value))
+        tf.logging.info('Step %d: Train accuracy = %.1f%%' %
+                        (i, train_accuracy * 100))
+        tf.logging.info('Step %d: Cross entropy = %f' %
+                        (i, cross_entropy_value))
         # TODO: Make this use an eval graph, to avoid quantization
         # moving averages being updated by the validation set, though in
         # practice this makes a negligable difference.
@@ -1113,8 +1130,8 @@ def main(_):
             feed_dict={bottleneck_input: validation_bottlenecks,
                        ground_truth_input: validation_ground_truth})
         validation_writer.add_summary(validation_summary, i)
-        tf.logging.info('%s: Step %d: Validation accuracy = %.1f%% (N=%d)' %
-                        (datetime.now(), i, validation_accuracy * 100,
+        tf.logging.info('Step %d: Validation accuracy = %.1f%% (N=%d)' %
+                        (i, validation_accuracy * 100,
                          len(validation_bottlenecks)))
 
       # Store intermediate results
@@ -1132,6 +1149,7 @@ def main(_):
         save_graph_to_file(graph, intermediate_file_name, module_spec,
                            class_count)
 
+    cleanup_progress.on_next((1, 2))
     # After training is complete, force one last save of the train checkpoint.
     train_saver.save(sess, CHECKPOINT_NAME)
 
@@ -1152,6 +1170,8 @@ def main(_):
 
     if FLAGS.saved_model_dir:
       export_model(module_spec, class_count, FLAGS.saved_model_dir)
+
+    cleanup_progress.on_next((2, 2))
 
 
 def parse_args():
@@ -1338,7 +1358,7 @@ def retrain(config_callback=identity):
   global FLAGS
   FLAGS, unparsed = parse_args()
   FLAGS = config_callback(FLAGS)
-  tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
+  main()
 
 
 if __name__ == '__main__':
