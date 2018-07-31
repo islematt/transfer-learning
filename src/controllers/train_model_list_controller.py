@@ -3,6 +3,7 @@ import wx
 from src.models.train_model import TrainModel
 from src.views.train_model_list_frame import TrainModelListFrame
 from src.controllers.train_model_controller import TrainModelController
+from src.controllers.image_match_controller import ImageMatchController
 
 
 class TrainModelListController:
@@ -17,14 +18,22 @@ class TrainModelListController:
 
     def _setup_callbacks(self):
         TrainModel.model_update.subscribe(self._reload_train_models)
-        self.train_model_list_frame.list_selection.subscribe(self._toggle_buttons_state)
-        self.train_model_list_frame.new.Bind(wx.EVT_BUTTON, self._show_train_model_frame)
+        self.train_model_list_frame.list_selection.subscribe(self._list_selection_changed)
+        self.train_model_list_frame.list_activation.subscribe(self._list_activated)
+        self.train_model_list_frame.new.Bind(wx.EVT_BUTTON, self._show_train_model_controller)
+        self.train_model_list_frame.select.Bind(wx.EVT_BUTTON, self._show_image_match_controller)
         self.train_model_list_frame.delete.Bind(wx.EVT_BUTTON, self._confirm_delete_model)
 
-    def _show_train_model_frame(self, ignored):
+    def _show_train_model_controller(self, ignored=None):
         self.train_model_frame = TrainModelController()
 
-    def _confirm_delete_model(self, ignored):
+    def _show_image_match_controller(self, ignored=None):
+        idx = self.train_model_list_frame.selected_idx
+        if idx < 0:
+            return
+        self.image_model_list = ImageMatchController(self.models[idx])
+
+    def _confirm_delete_model(self, ignored=None):
         try:
             dialog = wx.MessageDialog(None, "Are you sure you want to delete this model?", 'HEADS UP!!', wx.YES_NO)
             result = dialog.ShowModal()
@@ -46,10 +55,10 @@ class TrainModelListController:
         self.models = models
         self.train_model_list_frame.show_train_model(models)
 
-    def _toggle_buttons_state(self, selected_item_count):
-        if selected_item_count > 0:
-            self.train_model_list_frame.select.Enable()
-            self.train_model_list_frame.delete.Enable()
-        else:
-            self.train_model_list_frame.select.Disable()
-            self.train_model_list_frame.delete.Disable()
+    def _list_selection_changed(self, selected_item_count):
+        enable = selected_item_count > 0
+        self.train_model_list_frame.select.Enable(enable=enable)
+        self.train_model_list_frame.delete.Enable(enable=enable)
+
+    def _list_activated(self, ignored):
+        self._show_image_match_controller()

@@ -5,6 +5,7 @@ from send2trash import send2trash
 
 from src.utils.file_utils import absolute_path_of
 
+
 class TrainModel:
     model_update = Subject()
 

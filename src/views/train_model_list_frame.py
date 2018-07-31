@@ -1,10 +1,12 @@
 import wx
 from rx.subjects import Subject
 
+
 class TrainModelListFrame(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title="Main View", size=(300, 150))
         self.list_selection = Subject()
+        self.list_activation = Subject()
 
         self._init_views()
         self._setup_views()
@@ -25,6 +27,7 @@ class TrainModelListFrame(wx.Frame):
     def _setup_callbacks(self):
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self._notify_list_state_changed, self.list_save_state)
         self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self._notify_list_state_changed, self.list_save_state)
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._notify_list_item_activated, self.list_save_state)
 
     def _perform_layout(self):
         sizer_root = wx.BoxSizer(wx.HORIZONTAL)
@@ -43,6 +46,9 @@ class TrainModelListFrame(wx.Frame):
 
     def _notify_list_state_changed(self, ignored=None):
         self.list_selection.on_next(self.list_save_state.GetSelectedItemCount())
+
+    def _notify_list_item_activated(self, ignored):
+        self.list_activation.on_next(self.selected_idx)
 
     @property
     def selected_idx(self):
