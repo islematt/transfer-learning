@@ -134,6 +134,7 @@ import tensorflow_hub as hub
 from rx.subjects import Subject
 
 from src.utils.file_utils import ensure_dir_exists
+from src.models.train_model import IMAGE_EXTENSIONS
 
 FLAGS = None
 
@@ -185,8 +186,7 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
     sub_dirs = sorted(x[0] for x in tf.gfile.Walk(os.path.join(image_dir, path_entry)))
     file_list = []
     for sub_dir in sub_dirs:
-      extensions = ['jpg', 'jpeg', 'JPG', 'JPEG', 'png', 'PNG', 'bmp', 'BMP']
-      for extension in extensions:
+      for extension in IMAGE_EXTENSIONS:
         file_glob = os.path.join(sub_dir, '*.' + extension)
         file_list.extend(tf.gfile.Glob(file_glob))
     if not file_list:
@@ -235,6 +235,7 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
         training_images.append(base_name)
     result[label_name] = {
         'dir': path_entry,
+        'all': file_list,
         'training': training_images,
         'testing': testing_images,
         'validation': validation_images,
@@ -1173,6 +1174,8 @@ def main():
 
     cleanup_progress.on_next((2, 2))
 
+    return {'image_lists': image_lists}
+
 
 def parse_args():
   parser = argparse.ArgumentParser()
@@ -1358,7 +1361,7 @@ def retrain(config_callback=identity):
   global FLAGS
   FLAGS, unparsed = parse_args()
   FLAGS = config_callback(FLAGS)
-  main()
+  return main()
 
 
 if __name__ == '__main__':

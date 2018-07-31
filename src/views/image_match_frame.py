@@ -13,26 +13,20 @@ class ImageMatchFrame(wx.Frame):
         self.scrolled_panel = ScrolledPanel(self, style=wx.SIMPLE_BORDER)
         self.match_button = wx.Button(self, label="Match")
 
-        self.buttons = []
-        for i in range(30):
-            btn = wx.Button(self.scrolled_panel, label="aaaa" + str(i))
-            self.buttons.append(btn)
-
     def _perform_layout(self):
         sizer_root = wx.BoxSizer(wx.VERTICAL)
 
-        inner_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.scroll_content_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        for button in self.buttons:
-            inner_sizer.Add(button)
-
-        self.scrolled_panel.SetSizer(inner_sizer)
+        self.scrolled_panel.SetSizer(self.scroll_content_sizer)
 
         sizer_root.Add(self.scrolled_panel, 1, wx.EXPAND | wx.ALL, 5)
         sizer_root.Add(self.match_button, 0, wx.EXPAND | wx.ALL, 5)
 
+        self.SetMinSize(self.GetSize())
         self.SetSizer(sizer_root)
 
+        # TODO: Do something with horizontal scrollbar takes up space
         self.scrolled_panel.ShowScrollbars(wx.SHOW_SB_DEFAULT, wx.SHOW_SB_NEVER)
-        self.scrolled_panel.SetupScrolling()
+        self.scrolled_panel.SetupScrolling(scroll_y=False)
         self.scrolled_panel.SendSizeEvent()

@@ -1,13 +1,17 @@
 import os
 import threading
+import shutil
 
 import wx
 from rx.subjects import BehaviorSubject
+from send2trash import send2trash
 
 from src.retrain import retrain, search_image_progress, cache_bottleneck_progress, training_progress, cleanup_progress
 from src.views.train_model_frame import TrainModelFrame, ID_INPUT_SELECT
 from src.utils import log_utils
 from src.utils.file_utils import get_root_dir
+from src.utils.sort_utils import natural_keys
+from src.models.train_model import KEY_FILE_GRAPH, KEY_FILE_BOTTLENECK, KEY_FILE_LABELS, KEY_FILE_SUMMARY, KEY_FILE_THUMBNAILS
 
 
 class TrainOptions:
@@ -42,33 +46,48 @@ class TrainOptions:
 class TrainThread(threading.Thread):
     def __init__(self, *args, **kwargs):
         self.train_options = kwargs.pop('train_options', None)
-        self.pre_callback = kwargs.pop('pre_callback', None)
-        self.post_callback = kwargs.pop('post_callback', None)
+        self.pre_callback = kwargs.pop('pre_callback', lambda arg: arg)
+        self.post_callback = kwargs.pop('post_callback', lambda arg: arg)
         super(TrainThread, self).__init__(*args, **kwargs)
 
     def run(self):
         def config(FLAGS):
             root_dir = get_root_dir()
-
             base_output_dir = os.path.join(root_dir, self.train_options.base_output_dir)
 
             FLAGS.image_dir = os.path.join(root_dir, self.train_options.image_dir)
-            FLAGS.output_graph = os.path.join(base_output_dir, 'graph.pb')
-            FLAGS.output_labels = os.path.join(base_output_dir, 'labels.txt')
-            FLAGS.summaries_dir = os.path.join(base_output_dir, 'summary')
-            FLAGS.bottleneck_dir = os.path.join(base_output_dir, 'bottleneck')
+            FLAGS.output_graph = os.path.join(base_output_dir, KEY_FILE_GRAPH)
+            FLAGS.output_labels = os.path.join(base_output_dir, KEY_FILE_LABELS)
+            FLAGS.summaries_dir = os.path.join(base_output_dir, KEY_FILE_SUMMARY)
+            FLAGS.bottleneck_dir = os.path.join(base_output_dir, KEY_FILE_BOTTLENECK)
 
+            # TODO: Config
             FLAGS.how_many_training_steps = 10
 
             return FLAGS
 
-        if self.pre_callback:
-            self.pre_callback()
+        self.pre_callback()
 
-        retrain(config)
+        intermediates = retrain(config)
+        self.copy_each_first_image(intermediates)
 
-        if self.post_callback:
-            self.post_callback()
+        self.post_callback()
+
+    def copy_each_first_image(self, intermediates):
+        base_output_dir = os.path.join(get_root_dir(), self.train_options.base_output_dir)
+
+        image_lists = intermediates['image_lists']
+        for label, images in image_lists.items():
+            first_image_path = sorted(images['all'], key=natural_keys)[0]
+            image_name = os.path.basename(first_image_path)
+            out_dir_path = os.path.join(base_output_dir, KEY_FILE_THUMBNAILS, label)
+
+            if os.path.isdir(out_dir_path):
+                send2trash(out_dir_path)
+            os.makedirs(out_dir_path)
+
+            out_image_path = os.path.join(out_dir_path, image_name)
+            shutil.copyfile(first_image_path, out_image_path)
 
 
 class TrainModelController:
