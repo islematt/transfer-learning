@@ -1,5 +1,3 @@
-import os
-
 import wx
 
 from src.utils import log_utils

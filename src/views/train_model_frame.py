@@ -30,19 +30,19 @@ class TrainModelFrame(wx.Frame):
 
     def _perform_layout(self):
         sizer_root = wx.BoxSizer(wx.VERTICAL)
-        gridSizer = wx.FlexGridSizer(rows=2, cols=3, hgap=5, vgap=5)
+        grid_sizer = wx.FlexGridSizer(rows=2, cols=3, hgap=5, vgap=5)
 
-        gridSizer.Add(self.input_label)
-        gridSizer.Add(self.input_dir_ctrl, 1, wx.EXPAND)
-        gridSizer.Add(self.input_select)
+        grid_sizer.Add(self.input_label)
+        grid_sizer.Add(self.input_dir_ctrl, 1, wx.EXPAND)
+        grid_sizer.Add(self.input_select)
 
-        gridSizer.Add(self.output_label)
-        gridSizer.Add(self.output_dir_ctrl, 1, wx.EXPAND)
-        gridSizer.Add(self.output_select)
+        grid_sizer.Add(self.output_label)
+        grid_sizer.Add(self.output_dir_ctrl, 1, wx.EXPAND)
+        grid_sizer.Add(self.output_select)
 
-        gridSizer.AddGrowableCol(1)
+        grid_sizer.AddGrowableCol(1)
 
-        sizer_root.Add(gridSizer, 0, wx.EXPAND | wx.ALL, 5)
+        sizer_root.Add(grid_sizer, 0, wx.EXPAND | wx.ALL, 5)
         sizer_root.Add(self.train_button, 0, wx.EXPAND | wx.ALL, 5)
         sizer_root.Add(self.progress_bar, 0, wx.EXPAND | wx.ALL, 5)
         sizer_root.Add(self.log_ctrl, 1, wx.EXPAND | wx.ALL, 5)

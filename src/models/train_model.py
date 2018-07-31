@@ -1,4 +1,5 @@
 import os
+import logging
 
 from rx.subjects import Subject
 from send2trash import send2trash
@@ -13,6 +14,8 @@ KEY_FILE_THUMBNAILS = 'thumbnails'
 KEY_FILE_NAMES = [KEY_FILE_GRAPH, KEY_FILE_LABELS, KEY_FILE_SUMMARY, KEY_FILE_BOTTLENECK, KEY_FILE_THUMBNAILS]
 
 IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'JPG', 'JPEG', 'png', 'PNG', 'bmp', 'BMP']
+
+logger = logging.getLogger('app')
 
 
 class TrainModel:
@@ -86,6 +89,6 @@ class TrainModel:
             try:
                 models.append(TrainModel(dir_entry_path))
             except ValueError as e:
-                print(e)
+                logger.debug(str(e))
 
         return models

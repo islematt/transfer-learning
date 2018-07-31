@@ -1,10 +1,6 @@
-# -*- coding: utf-8 -*-
-
 from bs4 import BeautifulSoup
 import requests
 import re
-import urllib
-import json
 import os
 import random
 import json
@@ -19,6 +15,7 @@ image_header_prefix = ['a', 'aa', 'ba', 'i']
 url_base = 'hitomi.la/galleries'
 image_hosts = ['https://{}.{}'.format(prefix, url_base) for prefix in image_header_prefix]
 logger = logging.getLogger('app')
+
 
 class Image:
     def __init__(self, urls, gallery):
@@ -44,7 +41,7 @@ def sample_random(gallery_sample_count, image_sample_count, include_cover=True):
         logger.info('Examining valid image urls for gallery {}.'.format(gallery['id']))
         first_valid_url_idx = _find_first_valid_url_idx(img_urls)
         if first_valid_url_idx < 0:
-            logger.warn('Couldn\'t find valid url prefix for gallery {}'.format(gallery['id']))
+            logger.warning('Couldn\'t find valid url prefix for gallery {}'.format(gallery['id']))
             continue
         img_urls = img_urls[first_valid_url_idx:first_valid_url_idx+image_sample_count+(1 if include_cover else 0)]
         images[str(gallery['id'])] = Image(img_urls, gallery)
@@ -102,7 +99,7 @@ def _sample_image_names(gallery_id, sample_count, include_cover):
     dom = BeautifulSoup(res.text, 'html5lib')
     img_divs = dom.find_all('div', {'class': 'img-url'})
 
-    get_img_name = lambda img_div: re.compile('.*hitomi.la\/galleries\/\d*\/(.*)').match(img_div.text).group(1)
+    get_img_name = lambda img_div: re.compile('.*hitomi.la/galleries/\d*/(.*)').match(img_div.text).group(1)
 
     indices = random.sample(range(1 if include_cover else 0, len(img_divs)), sample_count)
     img_names = [get_img_name(img_divs[0])] if include_cover else []
@@ -113,12 +110,3 @@ def _sample_image_names(gallery_id, sample_count, include_cover):
 
     logger.debug('Sampled images: {}'.format(img_names))
     return img_names
-
-
-if __name__ == '__main__':
-    images = sample_random(1, 0)
-    for _, image in images.items():
-        # image = images[k]
-        print('{}'.format(image.urls))
-        print('{}'.format(image.gallery))
-        print('\n')

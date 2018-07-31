@@ -11,7 +11,8 @@ from src.views.train_model_frame import TrainModelFrame, ID_INPUT_SELECT
 from src.utils import log_utils
 from src.utils.file_utils import get_root_dir
 from src.utils.sort_utils import natural_keys
-from src.models.train_model import KEY_FILE_GRAPH, KEY_FILE_BOTTLENECK, KEY_FILE_LABELS, KEY_FILE_SUMMARY, KEY_FILE_THUMBNAILS
+from src.models.train_model import \
+    KEY_FILE_GRAPH, KEY_FILE_BOTTLENECK, KEY_FILE_LABELS, KEY_FILE_SUMMARY, KEY_FILE_THUMBNAILS
 
 
 class TrainOptions:
@@ -113,7 +114,8 @@ class TrainModelController:
         self.view.train_button.Enable(enable=options.are_enough_for_training())
 
     def _select_directory(self, event):
-        dir_dialog = wx.DirDialog(self.view, message="message", name="name")
+        message = 'Select image directory' if event.GetId() == ID_INPUT_SELECT else 'Select output directory'
+        dir_dialog = wx.DirDialog(self.view, message=message, name="name")
         dir_dialog.ShowModal()
 
         path = dir_dialog.GetPath()

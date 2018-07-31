@@ -1,5 +1,6 @@
 import os
-import logging, logging.config
+import logging
+import logging.config
 import json
 
 import tensorflow as tf

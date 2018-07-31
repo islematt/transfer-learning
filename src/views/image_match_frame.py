@@ -28,5 +28,4 @@ class ImageMatchFrame(wx.Frame):
 
         # TODO: Do something with horizontal scrollbar takes up space
         self.scrolled_panel.ShowScrollbars(wx.SHOW_SB_DEFAULT, wx.SHOW_SB_NEVER)
-        self.scrolled_panel.SetupScrolling(scroll_y=False)
-        self.scrolled_panel.SendSizeEvent()
+        self.scrolled_panel.SetupScrolling(scroll_y=False, scrollIntoView=False)

@@ -17,6 +17,7 @@ class TrainModelListController:
         self.train_model_list_frame = TrainModelListFrame(None)
 
     def _setup_callbacks(self):
+        # TODO: Reload when training finished(or watch file system change)
         TrainModel.model_update.subscribe(self._reload_train_models)
         self.train_model_list_frame.list_selection.subscribe(self._list_selection_changed)
         self.train_model_list_frame.list_activation.subscribe(self._list_activated)

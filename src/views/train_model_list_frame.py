@@ -16,7 +16,7 @@ class TrainModelListFrame(wx.Frame):
         self._perform_layout()
 
     def _init_views(self):
-        self.list_save_state = wx.ListCtrl(self, id=wx.ID_ANY, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
+        self.list_save_state = wx.ListCtrl(self, id=wx.ID_ANY, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         self.new = wx.Button(self, label="New")
         self.select = wx.Button(self, label="Select")
         self.delete = wx.Button(self, label="delete")
@@ -56,8 +56,8 @@ class TrainModelListFrame(wx.Frame):
 
     def show_train_model(self, models):
         self.list_save_state.ClearAll()
-        self.list_save_state.InsertColumn(0, '#', width = 30)
-        self.list_save_state.InsertColumn(1, 'name', width = 100)
+        self.list_save_state.InsertColumn(0, '#', width=30)
+        self.list_save_state.InsertColumn(1, 'name', width=100)
         for row_idx in range(len(models)):
             model = models[row_idx]
             self.list_save_state.Append([row_idx, model.name])
