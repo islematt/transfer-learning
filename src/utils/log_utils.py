@@ -11,7 +11,7 @@ class QuiteStreamHandler(logging.StreamHandler):
     def emit(self, record):
         if 'Initialize variable' in record.msg and 'from checkpoint' in record.msg:
             return
-        if hasattr(self, 'proxy'):
+        if hasattr(self, 'proxy') and callable(self.proxy):
             self.proxy(self.formatter.format(record))
             return
 

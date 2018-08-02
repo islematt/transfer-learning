@@ -4,6 +4,7 @@ from src.models.train_model import TrainModel
 from src.views.train_model_list_frame import TrainModelListFrame
 from src.controllers.train_model_controller import TrainModelController
 from src.controllers.image_match_controller import ImageMatchController
+from src.utils.wx_utils import show_confirm_dialog
 
 
 class TrainModelListController:
@@ -35,14 +36,7 @@ class TrainModelListController:
         self.image_model_list = ImageMatchController(self.models[idx])
 
     def _confirm_delete_model(self, ignored=None):
-        try:
-            dialog = wx.MessageDialog(None, "Are you sure you want to delete this model?", 'HEADS UP!!', wx.YES_NO)
-            result = dialog.ShowModal()
-
-            if result == wx.ID_YES:
-                self._delete_model()
-        finally:
-            dialog.Destroy()
+        show_confirm_dialog(self._delete_model, "Are you sure you want to delete this model?", "HEADS UP!!")
 
     def _delete_model(self):
         selected_idx = self.train_model_list_frame.selected_idx

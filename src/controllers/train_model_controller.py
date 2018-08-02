@@ -1,6 +1,10 @@
 import os
 import threading
+import multiprocessing as mp
+from multiprocessing import Queue
 import shutil
+import weakref
+import logging
 
 import wx
 from rx.subjects import BehaviorSubject
@@ -11,8 +15,12 @@ from src.views.train_model_frame import TrainModelFrame, ID_INPUT_SELECT
 from src.utils import log_utils
 from src.utils.file_utils import get_root_dir
 from src.utils.sort_utils import natural_keys
+from src.utils.function_utils import foreach
+from src.utils.wx_utils import show_confirm_dialog
 from src.models.train_model import \
     KEY_FILE_GRAPH, KEY_FILE_BOTTLENECK, KEY_FILE_LABELS, KEY_FILE_SUMMARY, KEY_FILE_THUMBNAILS
+
+logger = logging.getLogger('app')
 
 
 class TrainOptions:
@@ -44,12 +52,52 @@ class TrainOptions:
                self._base_output_dir != ''
 
 
-class TrainThread(threading.Thread):
+class ProgressEvent:
+    def __init__(self, progress):
+        self.progress = progress
+
+
+class LogEvent:
+    def __init__(self, message):
+        self.message = message
+
+
+class GuiUpdateThread(threading.Thread):
+    def __init__(self, progress_bar, log_ctrl):
+        super(GuiUpdateThread, self).__init__()
+        self.event_queue = Queue()
+        self.progress_bar_ref = weakref.ref(progress_bar)
+        self.log_ctrl_ref = weakref.ref(log_ctrl)
+
+    def run(self):
+        while True:
+            event = self.event_queue.get()
+            progress_bar = self.progress_bar_ref()
+            log_ctrl = self.log_ctrl_ref()
+            if not event or not progress_bar or not log_ctrl:
+                break
+
+            if isinstance(event, ProgressEvent):
+                wx.CallAfter(progress_bar.SetValue, event.progress)
+            if isinstance(event, LogEvent):
+                wx.CallAfter(log_ctrl.AppendText, event.message + '\n')
+
+        logger.debug('Stopped GuiUpdateThread')
+
+    def update_progress(self, progress):
+        self.event_queue.put(ProgressEvent(progress))
+
+    def append_log(self, message):
+        self.event_queue.put(LogEvent(message))
+
+    def terminate(self):
+        self.event_queue.put(None)
+
+
+class TrainProcess(mp.Process):
     def __init__(self, *args, **kwargs):
         self.train_options = kwargs.pop('train_options', None)
-        self.pre_callback = kwargs.pop('pre_callback', lambda arg: arg)
-        self.post_callback = kwargs.pop('post_callback', lambda arg: arg)
-        super(TrainThread, self).__init__(*args, **kwargs)
+        super(TrainProcess, self).__init__(*args, **kwargs)
 
     def run(self):
         def config(FLAGS):
@@ -67,12 +115,8 @@ class TrainThread(threading.Thread):
 
             return FLAGS
 
-        self.pre_callback()
-
         intermediates = retrain(config)
         self.copy_each_first_image(intermediates)
-
-        self.post_callback()
 
     def copy_each_first_image(self, intermediates):
         base_output_dir = os.path.join(get_root_dir(), self.train_options.base_output_dir)
@@ -94,6 +138,10 @@ class TrainThread(threading.Thread):
 class TrainModelController:
     def __init__(self):
         self.train_options = TrainOptions()
+        self.train_process = None
+        self.gui_update_thread = None
+        self.disposals = None
+
         self._init_views()
         self._setup_callbacks()
         self.view.Show()
@@ -105,6 +153,7 @@ class TrainModelController:
         self.view.Bind(wx.EVT_BUTTON, self._select_directory, self.view.input_select)
         self.view.Bind(wx.EVT_BUTTON, self._select_directory, self.view.output_select)
         self.view.Bind(wx.EVT_BUTTON, self._start_training, self.view.train_button)
+        self.view.Bind(wx.EVT_CLOSE, self._clean_up_and_close)
 
         self.train_options.update.subscribe(self._on_train_option_update)
 
@@ -130,30 +179,57 @@ class TrainModelController:
             self.train_options.base_output_dir = path
 
     def _start_training(self, ignored=None):
-        def update_progress_bar(progress, start, end):
+        self._clean_up_train()
+        self._prepare_train()
+
+        self.gui_update_thread = GuiUpdateThread(self.view.progress_bar, self.view.log_ctrl)
+        self.gui_update_thread.start()
+        self.train_process = TrainProcess(train_options=self.train_options)
+        self.train_process.start()
+
+    def _gui_log_output(self, message):
+        self.gui_update_thread.append_log(message)
+
+    def _subscribe_train_progress(self):
+        def _update_progress_bar(progress, start, end):
             proportion = end - start
             p = start + (progress[0] / progress[1]) * proportion
             p = int(p * 100)
+            self.gui_update_thread.update_progress(p)
 
-            wx.CallAfter(self.view.progress_bar.SetValue, p)
+        self.disposals = search_image_progress.subscribe(lambda p: _update_progress_bar(p, 0.0, 0.1)), \
+            cache_bottleneck_progress.subscribe(lambda p: _update_progress_bar(p, 0.1, 0.5)), \
+            training_progress.subscribe(lambda p: _update_progress_bar(p, 0.5, 0.9)), \
+            cleanup_progress.subscribe(lambda p: _update_progress_bar(p, 0.9, 1.0))
 
-        def gui_log_output(message):
-            wx.CallAfter(self.view.log_ctrl.AppendText, message + '\n')
+    def _prepare_train(self):
+        wx.CallAfter(self.view.train_button.Disable)
+        log_utils.redirect_console_to(self._gui_log_output)
+        self._subscribe_train_progress()
 
-        def pre_train_callback():
-            self.view.train_button.Disable()
-            log_utils.redirect_console_to(gui_log_output)
+    def _clean_up_train(self):
+        # TODO: Change 'Train' button into 'Next' button
+        log_utils.redirect_console_to(None)
+        self._dispose_subscriptions()
+        self._stop_train_process()
+        self._stop_gui_update_thread()
+        logger.debug("Cleaning up training...")
 
-        def post_train_callback():
-            # TODO: Change 'Train' button into 'Next' button
-            log_utils.redirect_console_to(None)
+    def _stop_train_process(self):
+        if self.train_process:
+            self.train_process.terminate()
+            self.train_process = None
 
-        search_image_progress.subscribe(lambda p: update_progress_bar(p, 0.0, 0.1))
-        cache_bottleneck_progress.subscribe(lambda p: update_progress_bar(p, 0.1, 0.5))
-        training_progress.subscribe(lambda p: update_progress_bar(p, 0.5, 0.9))
-        cleanup_progress.subscribe(lambda p: update_progress_bar(p, 0.9, 1.0))
+    def _stop_gui_update_thread(self):
+        if self.gui_update_thread:
+            self.gui_update_thread.terminate()
+            self.gui_update_thread = None
 
-        t = TrainThread(train_options=self.train_options,
-                        pre_callback=pre_train_callback,
-                        post_callback=post_train_callback)
-        t.start()
+    def _dispose_subscriptions(self):
+        if not self.disposals:
+            return
+        foreach(lambda disposable: disposable.dispose(), self.disposals)
+        self.disposals = None
+
+    def _clean_up_and_close(self, ignored):
+        show_confirm_dialog(lambda: self._clean_up_train() or self.view.Destroy(), "", "Stop training?")

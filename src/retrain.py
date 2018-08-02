@@ -148,6 +148,7 @@ CHECKPOINT_NAME = '/tmp/_retrain_checkpoint'
 FAKE_QUANT_OPS = ('FakeQuantWithMinMaxVars',
                   'FakeQuantWithMinMaxVarsPerChannel')
 
+# TODO: Consider mixing these into a single subject
 search_image_progress = Subject()
 cache_bottleneck_progress = Subject()
 training_progress = Subject()
