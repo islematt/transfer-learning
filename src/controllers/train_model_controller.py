@@ -231,5 +231,16 @@ class TrainModelController:
         foreach(lambda disposable: disposable.dispose(), self.disposals)
         self.disposals = None
 
+    @property
+    def is_training(self):
+        return self.train_process.is_alive() or self.gui_update_thread.is_alive()
+
     def _clean_up_and_close(self, ignored):
-        show_confirm_dialog(lambda: self._clean_up_train() or self.view.Destroy(), "", "Stop training?")
+        def do_clean_up_and_close():
+            self._clean_up_train() or self.view.Destroy()
+
+        if not self.is_training:
+            do_clean_up_and_close()
+            return
+
+        show_confirm_dialog(do_clean_up_and_close, "", "Stop training?")
