@@ -4,6 +4,7 @@ import wx
 
 from src.views.image_match_frame import ImageMatchFrame
 from src.image_matcher import match, progress_observable
+from src.utils.wx_utils import show_confirm_dialog
 
 logger = logging.getLogger('app')
 
@@ -25,6 +26,7 @@ class ImageMatchController:
 
     def _setup_callbacks(self):
         self.view.Bind(wx.EVT_BUTTON, self._sample_and_show_matched_images, self.view.match_button)
+        self.view.Bind(wx.EVT_CLOSE, self._clean_up_and_close)
 
     def _sample_and_show_matched_images(self, ignored):
         # TODO: Run on thread and show progress
@@ -70,3 +72,19 @@ class ImageMatchController:
         new_size = (int(bitmap_width * scale), int(bitmap_height * scale))
         bitmap.SetSize(new_size)
         return wx.StaticBitmap(parent, wx.ID_ANY, bitmap)
+
+    @property
+    def is_matching(self):
+        # TODO: Check whether matching process is running
+        return True
+
+    def _clean_up_and_close(self, ignored):
+        def do_clean_up_and_close():
+            # self._clean_up_train()
+            self.view.Destroy()
+
+        if not self.is_matching:
+            do_clean_up_and_close()
+            return
+
+        show_confirm_dialog(do_clean_up_and_close, "", "Stop matching?")

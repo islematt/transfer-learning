@@ -237,7 +237,8 @@ class TrainModelController:
 
     def _clean_up_and_close(self, ignored):
         def do_clean_up_and_close():
-            self._clean_up_train() or self.view.Destroy()
+            self._clean_up_train()
+            self.view.Destroy()
 
         if not self.is_training:
             do_clean_up_and_close()
