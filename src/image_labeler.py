@@ -17,16 +17,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-import argparse
 import logging
 
 import numpy as np
 import tensorflow as tf
-
-from src.utils.file_utils import  absolute_path_of
+from rx.subjects import Subject
 
 logger = logging.getLogger('app')
+
+# TODO: Possible data corruption. Consider wrapping into class
+classify_progress = Subject()
 
 
 def load_graph(model_file):
@@ -107,11 +107,13 @@ def classify_images(file_names, model_file, label_file):
   input_operation = graph.get_operation_by_name(input_name)
   output_operation = graph.get_operation_by_name(output_name)
 
+  classify_progress.on_next((0, 1))
   with tf.Session(graph=graph) as sess:
     logger.info('Classifying...')
     batch_results = sess.run(output_operation.outputs[0], {
         input_operation.outputs[0]: t
     })
+  classify_progress.on_next((1, 1))
 
   batch_size = len(batch_results)
 

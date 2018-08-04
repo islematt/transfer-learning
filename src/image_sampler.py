@@ -6,6 +6,8 @@ import random
 import json
 import logging
 
+from rx.subjects import Subject
+
 from src.utils.file_utils import ensure_dir_exists, absolute_path_of
 
 gallery_name_format = 'galleries{}.json'
@@ -14,7 +16,13 @@ gallery_file_path_format = cache_dir_name + '/{}'
 image_header_prefix = ['a', 'aa', 'ba', 'i']
 url_base = 'hitomi.la/galleries'
 image_hosts = ['https://{}.{}'.format(prefix, url_base) for prefix in image_header_prefix]
+
 logger = logging.getLogger('app')
+
+# TODO: Possible data corruption. Consider wrapping into class
+cache_galleries_progress = Subject()
+sample_books_progress = Subject()
+sample_images_progress = Subject()
 
 
 class Image:
@@ -29,22 +37,9 @@ def sample_random(gallery_sample_count, image_sample_count, include_cover=True):
     logger.info('Preparing gallery caches.')
     _cache_galleries(gallery_count)
 
-    logger.info('Sampling random galleries.')
-    galleries = _sample_random_galleries(gallery_count, gallery_sample_count)
-
-    images = {}
-    for gallery in galleries:
-        logger.info('Sampling random images for gallery {}.'.format(gallery['id']))
-        image_names = [img_name for img_name in _sample_image_names(gallery['id'], image_sample_count, include_cover)]
-        img_urls = ['{}/{}/{}'.format(image_host, gallery['id'], img_name) for image_host in image_hosts for img_name in image_names]
-
-        logger.info('Examining valid image urls for gallery {}.'.format(gallery['id']))
-        first_valid_url_idx = _find_first_valid_url_idx(img_urls)
-        if first_valid_url_idx < 0:
-            logger.warning('Couldn\'t find valid url prefix for gallery {}'.format(gallery['id']))
-            continue
-        img_urls = img_urls[first_valid_url_idx:first_valid_url_idx+image_sample_count+(1 if include_cover else 0)]
-        images[str(gallery['id'])] = Image(img_urls, gallery)
+    logger.info('Sampling random books.')
+    books = _sample_random_books(gallery_count, gallery_sample_count)
+    images = _sample_images_from_books(books, image_sample_count, include_cover)
 
     return images
 
@@ -64,8 +59,10 @@ def _get_gallery_count():
 
 
 def _cache_galleries(gallery_count):
+    # TODO: Set cache expiration limit
     ensure_dir_exists(cache_dir_name)
     for i in range(0, gallery_count):
+        cache_galleries_progress.on_next((i + 1, gallery_count))
         gallery_name = gallery_name_format.format(i)
         gallery_url = 'https://ltn.hitomi.la/' + gallery_name
         out_file_name = gallery_file_path_format.format(gallery_name)
@@ -79,19 +76,43 @@ def _cache_galleries(gallery_count):
             out_file.write(response.content.decode('utf-8'))
 
 
-def _sample_random_galleries(gallery_count, sample_count):
+def _sample_random_books(gallery_count, sample_count):
     gallery_idx = random.randint(0, gallery_count - 1)
     gallery_name = gallery_name_format.format(gallery_idx)
     gallery_file_path = gallery_file_path_format.format(gallery_name)
     with open(gallery_file_path, 'r') as gallery_file:
+        sample_books_progress.on_next((0, 1))
         gallery = json.load(gallery_file)
+        sample_books_progress.on_next((1, 1))
         indices = random.sample(range(len(gallery)), sample_count)
 
-        galleries = []
+        books = []
         for idx in indices:
-            galleries.append(gallery[idx])
+            books.append(gallery[idx])
 
-        return galleries
+        return books
+
+
+def _sample_images_from_books(books, image_sample_count, include_cover):
+    images = {}
+    books_cnt = len(books)
+    for idx in range(books_cnt):
+        sample_images_progress.on_next((idx + 1, books_cnt))
+
+        book = books[idx]
+        logger.info('Sampling random images for book {}.'.format(book['id']))
+        image_names = [img_name for img_name in _sample_image_names(book['id'], image_sample_count, include_cover)]
+        img_urls = ['{}/{}/{}'.format(image_host, book['id'], img_name) for image_host in image_hosts for img_name in image_names]
+
+        logger.info('Examining valid image urls for book {}.'.format(book['id']))
+        first_valid_url_idx = _find_first_valid_url_idx(img_urls)
+        if first_valid_url_idx < 0:
+            logger.warning('Couldn\'t find valid url prefix for book {}'.format(book['id']))
+            continue
+        img_urls = img_urls[first_valid_url_idx:first_valid_url_idx+image_sample_count+(1 if include_cover else 0)]
+        images[str(book['id'])] = Image(img_urls, book)
+
+    return images
 
 
 def _sample_image_names(gallery_id, sample_count, include_cover):

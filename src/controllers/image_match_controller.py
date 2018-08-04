@@ -3,7 +3,7 @@ import logging
 import wx
 
 from src.views.image_match_frame import ImageMatchFrame
-from src.image_matcher import match
+from src.image_matcher import match, progress_observable
 
 logger = logging.getLogger('app')
 
@@ -28,6 +28,7 @@ class ImageMatchController:
 
     def _sample_and_show_matched_images(self, ignored):
         # TODO: Run on thread and show progress
+        progress_observable.subscribe(lambda p: print(p))
         match_results = match(3, 0, self.model.graph_file_path, self.model.labels_file_path)
         for sampled_file_path, labels, probabilities in match_results:
             if probabilities[0] < THRESHOLD:

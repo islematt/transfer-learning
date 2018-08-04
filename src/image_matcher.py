@@ -3,11 +3,26 @@ from urllib.parse import urlparse
 import requests
 import logging
 
+from rx import Observable
+
 from src.utils.file_utils import ensure_dir_exists, absolute_path_of
-from src.image_sampler import sample_random
-from src.image_labeler import classify_images
+from src.image_sampler import sample_random, cache_galleries_progress, sample_books_progress, sample_images_progress
+from src.image_labeler import classify_images, classify_progress
 
 logger = logging.getLogger('app')
+
+
+def _convert_to_flat_progress(progress, start, end):
+    proportion = end - start
+    p = start + (progress[0] / progress[1]) * proportion
+    return int(p * 100)
+
+
+# noinspection PyUnresolvedReferences
+progress_observable = Observable.merge(cache_galleries_progress.map(lambda p: _convert_to_flat_progress(p, 0.0, 0.4)),
+                                       sample_books_progress.map(lambda p: _convert_to_flat_progress(p, 0.4, 0.6)),
+                                       sample_images_progress.map(lambda p: _convert_to_flat_progress(p, 0.6, 0.9)),
+                                       classify_progress.map(lambda p: _convert_to_flat_progress(p, 0.9, 1.0)))
 
 
 def download(url, out_file_dir, out_file_name):
