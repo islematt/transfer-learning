@@ -4,12 +4,29 @@ from multiprocessing import Queue
 import logging
 from abc import ABC, abstractmethod
 
+import wx
+
+from src.utils.function_utils import raise_if_not_callable
+
 logger = logging.getLogger('app')
 
 
-def raise_if_not_callable(arg):
-    if not callable(arg):
-        raise ValueError("{} is not callable".format(arg))
+class Event:
+    pass
+
+
+class GuiEvent(Event):
+    pass
+
+
+class ProgressEvent(GuiEvent):
+    def __init__(self, progress):
+        self.progress = progress
+
+
+class LogEvent(GuiEvent):
+    def __init__(self, message):
+        self.message = message
 
 
 class GuiUpdatingProcessWrapper(ABC):
@@ -19,7 +36,7 @@ class GuiUpdatingProcessWrapper(ABC):
         self.event_queue = Queue()
 
     def start(self):
-        if self.is_training:
+        if self.is_alive:
             self.terminate()
         self._prepare()
 
@@ -37,14 +54,18 @@ class GuiUpdatingProcessWrapper(ABC):
         self._clean_up()
         if self._gui_update_thread:
             self._gui_update_thread.terminate()
-            self._gui_update_thread = None
 
         if self._process:
             self._process.terminate()
-            self._process = None
+
+            # DO NOT REMOVE LINES BELOW
+            # Waiting a little while / calling Process.is_alive() might has effect on non-terminating process problem.
+            import time
+            time.sleep(0.2)
+            logger.debug("{} / {}".format(self._process.is_alive(), self._process.exitcode))
 
     @property
-    def is_training(self):
+    def is_alive(self):
         return (self._process and self._process.is_alive()) or\
                (self._gui_update_thread and self._gui_update_thread.is_alive())
 
@@ -54,7 +75,7 @@ class GuiUpdatingProcessWrapper(ABC):
         pass
 
     @abstractmethod
-    def _process_body(self):
+    def _process_body(self) -> Event:
         pass
 
     @abstractmethod
@@ -88,7 +109,10 @@ class GuiUpdateThread(threading.Thread):
             if not event:
                 break
 
-            self.gui_update_callback(event)
+            if isinstance(event, GuiEvent):
+                wx.CallAfter(self.gui_update_callback, event)
+            else:
+                self.gui_update_callback(event)
 
         logger.debug('Stopped {}'.format(self.name))
 
@@ -110,5 +134,7 @@ class Process(mp.Process):
         self.body = body
 
     def run(self):
-        self.body()
+        result_event = self.body()
+
+        self.event_queue.put(result_event)
         self.event_queue.put(None)

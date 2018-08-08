@@ -19,6 +19,7 @@ class TrainModelListFrame(wx.Frame):
         self.list_save_state = wx.ListCtrl(self, id=wx.ID_ANY, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         self.new = wx.Button(self, label="New")
         self.select = wx.Button(self, label="Select")
+        self.debug = wx.Button(self, label="Debug")
         self.delete = wx.Button(self, label="delete")
 
     def _setup_views(self):
@@ -35,6 +36,8 @@ class TrainModelListFrame(wx.Frame):
 
         sizer_buttons.Add(self.new, 0, wx.EXPAND)
         sizer_buttons.Add(self.select, 0, wx.EXPAND)
+        sizer_buttons.AddStretchSpacer(1)
+        sizer_buttons.Add(self.debug, 0, wx.EXPAND)
         sizer_buttons.AddStretchSpacer(1)
         sizer_buttons.Add(self.delete, 0, wx.EXPAND)
 

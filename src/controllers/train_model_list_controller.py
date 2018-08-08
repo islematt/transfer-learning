@@ -25,6 +25,8 @@ class TrainModelListController:
         self.train_model_list_frame.new.Bind(wx.EVT_BUTTON, self._show_train_model_controller)
         self.train_model_list_frame.select.Bind(wx.EVT_BUTTON, self._show_image_match_controller)
         self.train_model_list_frame.delete.Bind(wx.EVT_BUTTON, self._confirm_delete_model)
+        # XXX: Remove before release
+        self.train_model_list_frame.debug.Bind(wx.EVT_BUTTON, self._debug)
 
     def _show_train_model_controller(self, ignored=None):
         self.train_model_frame = TrainModelController()
@@ -57,3 +59,12 @@ class TrainModelListController:
 
     def _list_activated(self, ignored):
         self._show_image_match_controller()
+
+    # noinspection PyMethodMayBeStatic
+    def _debug(self, ignored):
+        import psutil
+
+        current_process = psutil.Process()
+        children = current_process.children(recursive=True)
+        for child in children:
+            print('Child pid is {}'.format(child.pid))

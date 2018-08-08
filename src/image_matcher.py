@@ -1,6 +1,5 @@
 import os
 from urllib.parse import urlparse
-import requests
 import logging
 
 from rx import Observable
@@ -8,6 +7,7 @@ from rx import Observable
 from src.utils.file_utils import ensure_dir_exists, absolute_path_of
 from src.image_sampler import sample_random, cache_galleries_progress, sample_books_progress, sample_images_progress
 from src.image_labeler import classify_images, classify_progress
+from src.utils.requests_utils import Session
 
 logger = logging.getLogger('app')
 
@@ -30,7 +30,7 @@ def download(url, out_file_dir, out_file_name):
     out_file_dir_path = absolute_path_of(out_file_dir_path)
     ensure_dir_exists(out_file_dir_path)
 
-    response = requests.get(url, stream=True)
+    response = Session.shared().get(url, stream=True)
     if not response.ok:
         logger.error("Resource {} couldn't be downloaded.".format(url))
         return None

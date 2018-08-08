@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup
-import requests
 import re
 import os
 import random
@@ -9,6 +8,7 @@ import logging
 from rx.subjects import Subject
 
 from src.utils.file_utils import ensure_dir_exists, absolute_path_of
+from src.utils.requests_utils import Session
 
 gallery_name_format = 'galleries{}.json'
 cache_dir_name = absolute_path_of('.cache')
@@ -47,13 +47,13 @@ def sample_random(gallery_sample_count, image_sample_count, include_cover=True):
 def _find_first_valid_url_idx(img_urls):
     for i in range(len(img_urls)):
         logger.debug('Checking {}'.format(img_urls[i]))
-        if requests.head(img_urls[i]).status_code == 200:
+        if Session.shared().head(img_urls[i]).status_code == 200:
             return i
     return -1
 
 
 def _get_gallery_count():
-    searchlib_contents = requests.get('https://ltn.hitomi.la/searchlib.js').text
+    searchlib_contents = Session.shared().get('https://ltn.hitomi.la/searchlib.js').text
     gallery_count = re.compile('number_of_gallery_jsons = (\d*)').search(searchlib_contents).group(1)
     return int(gallery_count)
 
@@ -69,7 +69,7 @@ def _cache_galleries(gallery_count):
         if os.path.isfile(out_file_name):
             continue
 
-        response = requests.get(gallery_url)
+        response = Session.shared().get(gallery_url)
 
         with open(out_file_name, 'w') as out_file:
             logger.info('Caching {} into {}...'.format(gallery_name, out_file_name))
@@ -116,7 +116,7 @@ def _sample_images_from_books(books, image_sample_count, include_cover):
 
 
 def _sample_image_names(gallery_id, sample_count, include_cover):
-    res = requests.get('https://hitomi.la/reader/{}.html'.format(gallery_id))
+    res = Session.shared().get('https://hitomi.la/reader/{}.html'.format(gallery_id))
     dom = BeautifulSoup(res.text, 'html5lib')
     img_divs = dom.find_all('div', {'class': 'img-url'})
 

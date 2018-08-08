@@ -43,8 +43,9 @@ def redirect_console_to(proxy):
     if not handler:
         return
 
+    logger = logging.getLogger('app')
+    logger.debug("Redirecting log to proxy: {}".format(proxy))
     handler.proxy = proxy
-    print(handler.proxy)
 
 
 def _get_console_handler():

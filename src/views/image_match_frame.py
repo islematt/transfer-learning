@@ -11,6 +11,7 @@ class ImageMatchFrame(wx.Frame):
 
     def _init_views(self):
         self.scrolled_panel = ScrolledPanel(self, style=wx.SIMPLE_BORDER)
+        self.progress_bar = wx.Gauge(self, range=100, style=wx.GA_HORIZONTAL)
         self.match_button = wx.Button(self, label="Match")
 
     def _perform_layout(self):
@@ -21,6 +22,7 @@ class ImageMatchFrame(wx.Frame):
         self.scrolled_panel.SetSizer(self.scroll_content_sizer)
 
         sizer_root.Add(self.scrolled_panel, 1, wx.EXPAND | wx.ALL, 5)
+        sizer_root.Add(self.progress_bar, 0, wx.EXPAND | wx.ALL, 5)
         sizer_root.Add(self.match_button, 0, wx.EXPAND | wx.ALL, 5)
 
         self.SetMinSize(self.GetSize())

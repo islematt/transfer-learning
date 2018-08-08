@@ -12,9 +12,9 @@ from src.views.train_model_frame import TrainModelFrame, ID_INPUT_SELECT
 from src.utils import log_utils
 from src.utils.file_utils import get_root_dir
 from src.utils.sort_utils import natural_keys
-from src.utils.function_utils import foreach
+from src.utils.function_utils import foreach, noop
 from src.utils.wx_utils import show_confirm_dialog
-from src.models.gui_updating_process_wrapper import GuiUpdatingProcessWrapper
+from src.models.gui_updating_process_wrapper import GuiUpdatingProcessWrapper, Event, GuiEvent, ProgressEvent, LogEvent
 from src.models.train_model import \
     KEY_FILE_GRAPH, KEY_FILE_BOTTLENECK, KEY_FILE_LABELS, KEY_FILE_SUMMARY, KEY_FILE_THUMBNAILS, KEY_TFHUB_MODULE
 
@@ -50,17 +50,7 @@ class TrainOptions:
                self._base_output_dir != ''
 
 
-class ProgressEvent:
-    def __init__(self, progress):
-        self.progress = progress
-
-
-class LogEvent:
-    def __init__(self, message):
-        self.message = message
-
-
-class UpdateThumbnailEvent:
+class UpdateThumbnailEvent(GuiEvent):
     def __init__(self, image_lists):
         self.image_lists = image_lists
 
@@ -80,7 +70,7 @@ class Trainer(GuiUpdatingProcessWrapper):
     def view(self):
         return self.view_ref()
 
-    def _process_body(self):
+    def _process_body(self) -> Event:
         def config(FLAGS):
             root_dir = get_root_dir()
             base_output_dir = os.path.join(root_dir, self.train_options.base_output_dir)
@@ -98,17 +88,16 @@ class Trainer(GuiUpdatingProcessWrapper):
             return FLAGS
 
         intermediates = retrain(config)
-
-        self.post_event(UpdateThumbnailEvent(intermediates['image_lists']))
+        return UpdateThumbnailEvent(intermediates['image_lists'])
 
     def _gui_update_callback(self, event):
         if not self.view:
             return
 
         if isinstance(event, ProgressEvent):
-            wx.CallAfter(self.view.progress_bar.SetValue, event.progress)
+            self.view.progress_bar.SetValue(event.progress)
         if isinstance(event, LogEvent):
-            wx.CallAfter(self.view.log_ctrl.AppendText, event.message + '\n')
+            self.view.log_ctrl.AppendText(event.message + '\n')
         if isinstance(event, UpdateThumbnailEvent):
             self._copy_each_first_image(event.image_lists)
 
@@ -139,6 +128,7 @@ class Trainer(GuiUpdatingProcessWrapper):
             p = int(p * 100)
             self.post_event(ProgressEvent(p))
 
+        # TODO: Map and merge all(see image_matcher.py)
         self.disposals = search_image_progress.subscribe(lambda p: _update_progress_bar(p, 0.0, 0.1)), \
             cache_bottleneck_progress.subscribe(lambda p: _update_progress_bar(p, 0.1, 0.5)), \
             training_progress.subscribe(lambda p: _update_progress_bar(p, 0.5, 0.9)), \
@@ -167,12 +157,14 @@ class Trainer(GuiUpdatingProcessWrapper):
 
 class TrainModelController:
     def __init__(self):
-        self.train_options = TrainOptions()
-        self.trainer = None
-
+        self._init_models()
         self._init_views()
         self._setup_callbacks()
         self.view.Show()
+
+    def _init_models(self):
+        self.train_options = TrainOptions()
+        self.trainer = None
 
     def _init_views(self):
         self.view = TrainModelFrame(None)
@@ -212,10 +204,10 @@ class TrainModelController:
 
     def _clean_up_and_close(self, ignored):
         def do_clean_up_and_close():
-            self.trainer.terminate()
+            self.trainer.terminate() if self.trainer else noop
             self.view.Destroy()
 
-        if not self.trainer.is_training:
+        if not self.trainer or not self.trainer.is_alive:
             do_clean_up_and_close()
             return
 
