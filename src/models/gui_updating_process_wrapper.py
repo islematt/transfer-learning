@@ -57,12 +57,13 @@ class GuiUpdatingProcessWrapper(ABC):
 
         if self._process:
             self._process.terminate()
+            self._process.join()
 
             # DO NOT REMOVE LINES BELOW
             # Waiting a little while / calling Process.is_alive() might has effect on non-terminating process problem.
-            import time
-            time.sleep(0.2)
-            logger.debug("{} / {}".format(self._process.is_alive(), self._process.exitcode))
+            # import time
+            # time.sleep(0.2)
+            logger.debug("{} / {} / {}".format(self._process, self._process.is_alive(), self._process.exitcode))
 
     @property
     def is_alive(self):
@@ -134,7 +135,10 @@ class Process(mp.Process):
         self.body = body
 
     def run(self):
-        result_event = self.body()
+        try:
+            result_event = self.body()
 
-        self.event_queue.put(result_event)
-        self.event_queue.put(None)
+            self.event_queue.put(result_event)
+            self.event_queue.put(None)
+        except Exception as e:
+            logger.debug(str(e))

@@ -68,3 +68,6 @@ class TrainModelListController:
         children = current_process.children(recursive=True)
         for child in children:
             print('Child pid is {}'.format(child.pid))
+            print(child.is_running())
+            child.terminate()
+            print(child.is_running())

@@ -56,6 +56,17 @@ class MatchResultEvent(GuiEvent):
         self.match_results = match_results
 
 
+def _listen_terminate():
+    import signal
+
+    def on_terminate(signum, stack):
+        from src.utils.requests_utils import Session
+        logger.debug("SIGTERM called")
+        Session.dispose()
+
+    signal.signal(signal.SIGTERM, on_terminate)
+
+
 class Matcher(GuiUpdatingProcessWrapper):
     def __init__(self, view, model):
         super(Matcher, self).__init__()
@@ -76,6 +87,8 @@ class Matcher(GuiUpdatingProcessWrapper):
         return self.model_ref()
 
     def _process_body(self) -> Event:
+        _listen_terminate()
+
         if not self.model:
             return MatchResultEvent(None)
 
